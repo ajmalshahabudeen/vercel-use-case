@@ -19,7 +19,11 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@vercel-env-updater/*": ["./*"],
+      "@vercel-env-updater/config": ["./config/index.ts"],
+      "@vercel-env-updater/components": ["./components/index.ts"],
+      "@vercel-env-updater/server": ["./server/index.ts"]
     }
   },
   "include": [
