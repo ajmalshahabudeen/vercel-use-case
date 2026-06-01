@@ -99,3 +99,89 @@ export async function bulkUpsertEnv(
 
   return results
 }
+
+/**
+ * Triggers a new deployment (redeploy) for a project.
+ * This is commonly used after updating environment variables.
+ */
+export async function redeployProject(
+  token: string,
+  projectIdOrName: string,
+  target: 'production' | 'preview' = 'production'
+): Promise<{ id: string; url?: string }> {
+  const client = createVercelClient(token)
+
+  const { data } = await client.post('/v13/deployments', {
+    project: projectIdOrName,
+    target,
+    // Vercel will use the latest commit for the target environment
+  })
+
+  return data
+}
+
+/**
+ * Performs env variable updates + triggers redeployments for the projects
+ * where the update succeeded.
+ */
+export async function bulkUpdateAndRedeploy(
+  token: string,
+  key: string,
+  projects: Array<{ id: string; name: string; value: string }>,
+  targets: VercelEnvVariable['target']
+): Promise<{
+  updateResults: BulkUpdateResult[]
+  redeployResults: Array<{
+    projectId: string
+    projectName: string
+    success: boolean
+    error?: string
+    deploymentId?: string
+  }>
+}> {
+  // Step 1: Update environment variables
+  const updateResults = await bulkUpsertEnv(token, key, projects, targets)
+
+  const redeployResults: Array<{
+    projectId: string
+    projectName: string
+    success: boolean
+    error?: string
+    deploymentId?: string
+  }> = []
+
+  // Step 2: Redeploy only projects that had successful env updates
+  const successfulProjectIds = new Set(
+    updateResults.filter((r) => r.success).map((r) => r.projectId)
+  )
+
+  const projectsToRedeploy = projects.filter((p) => successfulProjectIds.has(p.id))
+
+  for (const project of projectsToRedeploy) {
+    try {
+      const deployment = await redeployProject(token, project.id, 'production')
+
+      redeployResults.push({
+        projectId: project.id,
+        projectName: project.name,
+        success: true,
+        deploymentId: deployment.id,
+      })
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: { message?: string } } }; message?: string }
+      const message =
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        'Failed to trigger redeployment'
+
+      redeployResults.push({
+        projectId: project.id,
+        projectName: project.name,
+        success: false,
+        error: message,
+      })
+    }
+  }
+
+  return { updateResults, redeployResults }
+}

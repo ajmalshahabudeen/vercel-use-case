@@ -1,6 +1,6 @@
 'use server'
 
-import { listProjects, bulkUpsertEnv } from './vercel-client'
+import { listProjects, bulkUpsertEnv, bulkUpdateAndRedeploy } from './vercel-client'
 import type { ScanProjectsResult, BulkUpdateResult, DeploymentTarget } from '@vercel-env-updater/config'
 import { DEFAULT_TARGETS } from '@vercel-env-updater/config'
 
@@ -64,6 +64,62 @@ export async function performBulkUpdate(params: {
       success: false,
       results: [],
       error: err?.message || 'Bulk update failed',
+    }
+  }
+}
+
+export async function performBulkUpdateAndRedeploy(params: {
+  token: string
+  key: string
+  projects: Array<{ id: string; name: string; value: string }>
+  targets?: DeploymentTarget[]
+}): Promise<{
+  success: boolean
+  updateResults: BulkUpdateResult[]
+  redeployResults: Array<{
+    projectId: string
+    projectName: string
+    success: boolean
+    error?: string
+    deploymentId?: string
+  }>
+  error?: string
+}> {
+  const { token, key, projects, targets = DEFAULT_TARGETS } = params
+
+  if (!token || !key || projects.length === 0) {
+    return {
+      success: false,
+      updateResults: [],
+      redeployResults: [],
+      error: 'Missing required fields (token, key, or selected projects)',
+    }
+  }
+
+  try {
+    const { updateResults, redeployResults } = await bulkUpdateAndRedeploy(
+      token.trim(),
+      key.trim(),
+      projects,
+      targets
+    )
+
+    const allUpdatesSucceeded = updateResults.every((r) => r.success)
+    const allRedeploysSucceeded = redeployResults.every((r) => r.success)
+    const overallSuccess = allUpdatesSucceeded && allRedeploysSucceeded
+
+    return {
+      success: overallSuccess,
+      updateResults,
+      redeployResults,
+    }
+  } catch (error: unknown) {
+    const err = error as { message?: string }
+    return {
+      success: false,
+      updateResults: [],
+      redeployResults: [],
+      error: err?.message || 'Bulk update + redeploy failed',
     }
   }
 }
