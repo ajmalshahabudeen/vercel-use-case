@@ -14,10 +14,10 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:build": "docker build -t vercel-postgres:18 -f Dockerfile .",
-    "db:up": "docker run -d --name vercel-db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=vercel_use_case -p 5432:5432 -v vercel_pgdata:/var/lib/postgresql/data postgres:18 || docker start vercel-db",
+    "db:up": "docker run -d --name vercel-db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=vercel_use_case -p 5432:5432 -v vercel_pgdata:/var/lib/postgresql postgres:18 || docker start vercel-db",
     "db:down": "docker stop vercel-db || true",
     "db:logs": "docker logs -f vercel-db",
-    "db:reset": "docker rm -f vercel-db || true && echo 'Volume vercel_pgdata preserved for persistence. To fully reset: docker volume rm -f vercel_pgdata'"
+    "db:reset": "docker rm -f vercel-db || true && echo 'Volume vercel_pgdata preserved. For Postgres 18+ layout, use a fresh volume if you hit data directory errors after image upgrades.'"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
