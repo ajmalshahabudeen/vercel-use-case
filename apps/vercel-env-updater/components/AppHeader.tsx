@@ -1,9 +1,16 @@
 'use client'
 
+import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useTheme } from 'next-themes'
 import { Button } from '@workspace/ui/components/button'
-import { HiOutlineRocketLaunch, HiOutlineDocumentDuplicate } from 'react-icons/hi2'
+import {
+  HiOutlineRocketLaunch,
+  HiOutlineDocumentDuplicate,
+  HiOutlineSun,
+  HiOutlineMoon,
+} from 'react-icons/hi2'
 import { cn } from '@workspace/ui/lib/utils'
 
 const navItems = [
@@ -13,6 +20,16 @@ const navItems = [
 
 export function AppHeader() {
   const pathname = usePathname()
+  const { setTheme, resolvedTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const toggleTheme = () => {
+    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -61,6 +78,24 @@ export function AppHeader() {
             >
               Vercel API Docs
             </a>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={toggleTheme}
+            aria-label="Toggle dark mode"
+            className="ml-1"
+          >
+            {mounted ? (
+              resolvedTheme === 'dark' ? (
+                <HiOutlineSun className="size-4" />
+              ) : (
+                <HiOutlineMoon className="size-4" />
+              )
+            ) : (
+              <HiOutlineMoon className="size-4 opacity-50" />
+            )}
           </Button>
         </nav>
       </div>

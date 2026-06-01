@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@workspace/ui/globals.css";
-import "./globals.css";
-import { AppHeader } from '@vercel-env-updater/components';
-import { AppFooter } from '@vercel-env-updater/components';
+import { AppHeader, AppFooter, ThemeProvider } from '@vercel-env-updater/components';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,9 +32,11 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background">
-        <AppHeader />
-        <main className="flex-1">{children}</main>
-        <AppFooter />
+        <ThemeProvider>
+          <AppHeader />
+          <main className="flex-1">{children}</main>
+          <AppFooter />
+        </ThemeProvider>
       </body>
     </html>
   );

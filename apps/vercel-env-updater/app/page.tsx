@@ -177,45 +177,11 @@ export default function VercelEnvUpdaterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="bg-background text-foreground">
       <Toaster position="top-center" richColors closeButton />
 
-      {/* Top Navigation */}
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-foreground text-background">
-              <HiOutlineRocketLaunch className="size-5" />
-            </div>
-            <div>
-              <div className="font-semibold tracking-tight text-xl">Vercel Env</div>
-              <div className="text-[10px] text-muted-foreground -mt-1">SYNC + DB</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => window.open("https://vercel.com/docs", "_blank")}>
-              Docs
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                reset()
-                toast("Demo reset")
-              }}
-            >
-              Reset Demo
-            </Button>
-            <Button size="sm" asChild>
-              <a href="#setup">Get Started</a>
-            </Button>
-          </div>
-        </div>
-      </header>
-
       {/* Hero / Get Started Header */}
-      <div className="mx-auto max-w-4xl px-6 pt-16 pb-12 text-center">
+      <div className="mx-auto max-w-4xl px-6 pt-10 pb-12 text-center">
         <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium mb-6">
           <HiServerStack className="size-3.5" />
           Powered by @workspace/db • Prisma • Postgres 18
@@ -287,7 +253,7 @@ export default function VercelEnvUpdaterPage() {
 
               {config && (
                 <div className="mt-5 rounded-3xl border bg-muted/40 p-4 text-sm flex items-start gap-3">
-                  <HiOutlineCheckCircle className="mt-0.5 size-5 text-emerald-500 shrink-0" />
+                  <HiOutlineCheckCircle className="mt-0.5 size-5 text-green-500 shrink-0" />
                   <div>
                     Connected to <span className="font-medium">{config.scope || "personal account"}</span>
                     {config.projectId && <> • Project: <span className="font-mono text-xs">{config.projectId}</span></>}
