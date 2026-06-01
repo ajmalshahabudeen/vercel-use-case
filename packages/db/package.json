@@ -1,0 +1,40 @@
+{
+  "name": "@workspace/db",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "lint": "eslint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,md}\"",
+    "typecheck": "tsc --noEmit",
+    "build": "prisma generate",
+    "clean": "rm -rf generated dist .turbo 2>nul || echo 'clean done'",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "db:build": "docker build -t vercel-postgres:18 -f Dockerfile .",
+    "db:up": "docker run -d --name vercel-db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=vercel_use_case -p 5432:5432 -v vercel_pgdata:/var/lib/postgresql/data postgres:18 || docker start vercel-db",
+    "db:down": "docker stop vercel-db || true",
+    "db:logs": "docker logs -f vercel-db",
+    "db:reset": "docker rm -f vercel-db || true && echo 'Volume vercel_pgdata preserved for persistence. To fully reset: docker volume rm -f vercel_pgdata'"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "7.8.0",
+    "pg": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/pg": "^8.20.0",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "dotenv": "^17.4.2",
+    "eslint": "^9",
+    "prisma": "7.8.0",
+    "typescript": "^5"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
