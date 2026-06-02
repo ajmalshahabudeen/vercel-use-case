@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "docker:build": "docker build -f Dockerfile -t vercel-env-updater:latest ../..",
+    "docker:run": "docker run -d --name vercel-env-updater --network vercel-net -e DATABASE_URL=postgresql://postgres:postgres@vercel-db:5432/vercel_use_case?schema=public -p 3001:3000 --rm vercel-env-updater:latest"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",

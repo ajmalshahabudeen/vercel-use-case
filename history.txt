@@ -33,6 +33,37 @@
 
 **Status:** COMPLETE (code). Run `bun run --cwd packages/db db:push` once Postgres credentials match `.env` to create tables.
 
+## 2026-06-02 : Dockerfiles for Next.js apps + README getting started
+
+**What I did:**
+- Per Grok-rule.md: read/updated history.txt; ran lint + build for node+ts apps.
+- Added `apps/vercel-env-updater/Dockerfile` — multi-stage (bun build, node:22-alpine runner) with monorepo root as build context; Prisma/`@workspace/db` build before app build; standalone output.
+- Added `apps/web/Dockerfile` — same pattern for the template web app.
+- Added root `.dockerignore` to keep Docker contexts small.
+- Enabled `output: "standalone"` + `outputFileTracingRoot` in `apps/vercel-env-updater/next.config.ts` and `apps/web/next.config.ts` for production containers.
+- Added `docker:build` / `docker:run` scripts on each app `package.json`; root `package.json` shortcuts for network, db image build, and app image builds.
+- Rewrote root `README.md` with ordered flow: Docker network → Postgres (`packages/db/Dockerfile`) → `db:push` → build/run each Next.js image with copy-paste commands and ports (3000 web, 3001 env-updater).
+
+**Why:**
+- User asked for vercel-env-updater Dockerfile, README usage docs, and terminal commands to run DB first then each Next.js app in Docker.
+
+**Verification (Grok-rule #2):**
+- `bun run lint --filter=vercel-env-updater --filter=web` — exit 0
+- `bun run build --filter=vercel-env-updater --filter=web` — exit 0 after exporting `Prisma` from `packages/db/index.ts` (fixed pre-existing `log.ts` type error)
+
+**Files changed:**
+- packages/db/index.ts (export Prisma namespace)
+- apps/vercel-env-updater/Dockerfile (new)
+- apps/web/Dockerfile (new)
+- .dockerignore (new)
+- apps/vercel-env-updater/next.config.ts
+- apps/web/next.config.ts
+- apps/vercel-env-updater/package.json
+- apps/web/package.json
+- package.json
+- README.md
+- history.txt
+
 **Files changed:**
 - packages/db/prisma/schema.prisma
 - packages/db/src/index.ts (import paths)
