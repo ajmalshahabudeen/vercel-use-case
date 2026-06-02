@@ -21,7 +21,12 @@ import {
 } from '@workspace/ui/components/alert-dialog'
 
 import { ProjectSelector } from '@vercel-env-updater/components'
-import { scanVercelProjects, performBulkUpdate, performBulkUpdateAndRedeploy } from '@vercel-env-updater/server'
+import {
+  scanVercelProjects,
+  performBulkUpdate,
+  performBulkUpdateAndRedeploy,
+  getDefaultVercelToken,
+} from '@vercel-env-updater/server'
 import type { VercelProject, DeploymentTarget } from '@vercel-env-updater/config'
 
 import { HiOutlineKey, HiOutlineDocumentDuplicate, HiArrowPath } from 'react-icons/hi2'
@@ -54,13 +59,33 @@ export default function BulkUpdatePage() {
   const [applySameValue, setApplySameValue] = React.useState(true)
   const [perProjectValues, setPerProjectValues] = React.useState<Record<string, string>>({})
 
-  const { register, handleSubmit, control, reset } = useForm<FormValues>({
+  const { register, handleSubmit, control, reset, setValue } = useForm<FormValues>({
     defaultValues: {
       token: '',
       key: 'DATABASE_URL',
       globalValue: '',
     },
   })
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    async function loadDefaultToken() {
+      try {
+        const defaultToken = await getDefaultVercelToken()
+        if (cancelled || !defaultToken?.token) return
+        setValue('token', defaultToken.token)
+        toast.info(`Loaded default token: ${defaultToken.label}`, { duration: 3000 })
+      } catch {
+        // DB unavailable — user can paste token manually
+      }
+    }
+
+    loadDefaultToken()
+    return () => {
+      cancelled = true
+    }
+  }, [setValue])
 
   // Use useWatch (instead of watch from useForm) for React Compiler compatibility.
   // watch() from useForm returns unstable functions that trigger "incompatible library" skip.
@@ -188,8 +213,7 @@ export default function BulkUpdatePage() {
         })
       }
 
-      // Show individual results in console for debugging (in real app → better UI)
-      console.table(result.results)
+      // Results are persisted to ActivityLog via server actions (view on Account → Logs)
     } finally {
       setIsUpdating(false)
     }
@@ -302,9 +326,7 @@ export default function BulkUpdatePage() {
         })
       }
 
-      // Log detailed results for debugging
-      console.log('Update results:', result.updateResults)
-      console.log('Redeploy results:', result.redeployResults)
+      // Detailed results are persisted to ActivityLog (Account → Logs)
     } catch {
       toast.error('Unexpected error during bulk update + redeploy')
     } finally {
@@ -336,7 +358,11 @@ export default function BulkUpdatePage() {
                 1. Vercel Access
               </CardTitle>
               <CardDescription>
-                Your token is only used in secure Server Actions and never stored.
+                Token is sent via secure Server Actions. Save defaults on{' '}
+                <a href="/account" className="underline underline-offset-2 hover:text-foreground">
+                  Account → Tokens
+                </a>
+                .
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -536,7 +562,8 @@ export default function BulkUpdatePage() {
       </div>
 
       <div className="mt-8 text-xs text-muted-foreground">
-        All API calls are executed securely from Server Actions in <code>/server</code>. Your token is never persisted.
+        All API calls run via Server Actions in <code>/server</code>. Activity is logged to Postgres — view on{' '}
+        <a href="/account" className="underline underline-offset-2 hover:text-foreground">Account → Logs</a>.
       </div>
 
       {/* Deployment Confirmation Dialog */}

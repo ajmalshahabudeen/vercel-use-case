@@ -3,8 +3,14 @@
 import React from "react"
 import { useForm } from "react-hook-form"
 import { create } from "zustand"
-import axios from "axios"
 import { Toaster, toast } from "sonner"
+
+import {
+  getVercelConnection,
+  listStoredEnvVars,
+  saveVercelConnection,
+  syncEnvVarsToDatabase,
+} from "@vercel-env-updater/server"
 
 import { Button } from "@workspace/ui/components/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card"
@@ -80,30 +86,30 @@ const useUpdaterStore = create<UpdaterStore>((set, get) => ({
     set({ isSyncing: true })
 
     try {
-      // Demonstrate axios usage (realistic Vercel API call pattern - will gracefully fail without real token)
-      await axios
-        .get("https://api.vercel.com/v9/projects", {
-          headers: { Authorization: `Bearer ${config.vercelToken}` },
-          timeout: 4000,
-        })
-        .catch(() => {
-          // Expected in demo without valid token — we still proceed with "DB sync"
-        })
+      const result = await syncEnvVarsToDatabase({
+        config,
+        envVars,
+      })
 
-      // Simulate work + Prisma/@workspace/db persistence
-      await new Promise((resolve) => setTimeout(resolve, 650))
+      if (!result.success) {
+        set({ isSyncing: false })
+        toast.error("Sync failed", { description: result.error })
+        return
+      }
 
       set((state) => ({
         syncCount: state.syncCount + 1,
         isSyncing: false,
       }))
 
-      toast.success(`Synced ${envVars.length} variables to Postgres`, {
-        description: "Persisted via @workspace/db + Prisma ORM",
-      })
+      const description = result.vercelValidated
+        ? "Persisted via @workspace/db — Vercel API validated"
+        : "Persisted via @workspace/db (token not validated against Vercel)"
+
+      toast.success(`Synced ${envVars.length} variables to Postgres`, { description })
     } catch {
       set({ isSyncing: false })
-      toast.error("Sync failed", { description: "Check your connection or token" })
+      toast.error("Sync failed", { description: "Check database connection (packages/db db:up)" })
     }
   },
 
@@ -134,28 +140,24 @@ export default function VercelEnvUpdaterPage() {
     defaultValues: { token: "", scope: "", projectId: "" },
   })
 
-  const onConnectSubmit = (data: { token: string; scope: string; projectId: string }) => {
+  const onConnectSubmit = async (data: { token: string; scope: string; projectId: string }) => {
     const newConfig: EnvConfig = {
       vercelToken: data.token.trim(),
       scope: data.scope.trim(),
       projectId: data.projectId.trim(),
     }
+
+    const saved = await saveVercelConnection(newConfig)
+    if (!saved.success) {
+      toast.error("Could not save connection", { description: saved.error })
+      return
+    }
+
     setConfig(newConfig)
     toast.success("Vercel connected", {
       description: `Scope: ${newConfig.scope || "personal"} • Project: ${newConfig.projectId || "all"}`,
     })
     resetForm()
-
-    // Lightweight demo of axios (could be real /v9/user in production)
-    axios
-      .get("https://api.vercel.com/v2/user", {
-        headers: { Authorization: `Bearer ${newConfig.vercelToken}` },
-        timeout: 3000,
-      })
-      .then(() => toast.info("Token validated against Vercel API"))
-      .catch(() => {
-        /* demo mode - token may be fake */
-      })
   }
 
   // Simple add-var form (lightweight, no extra RHF instance)
@@ -175,6 +177,44 @@ export default function VercelEnvUpdaterPage() {
       handleAddVar()
     }
   }
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    async function loadFromDatabase() {
+      try {
+        const [connection, storedVars] = await Promise.all([
+          getVercelConnection(),
+          listStoredEnvVars(),
+        ])
+
+        if (cancelled) return
+
+        if (connection) {
+          setConfig({
+            vercelToken: connection.vercelToken,
+            scope: connection.scope,
+            projectId: connection.projectId,
+          })
+        }
+
+        if (storedVars.length > 0) {
+          useUpdaterStore.setState({ envVars: storedVars })
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error("Could not load saved data", {
+            description: "Start Postgres: bun run --cwd packages/db db:up",
+          })
+        }
+      }
+    }
+
+    void loadFromDatabase()
+    return () => {
+      cancelled = true
+    }
+  }, [setConfig])
 
   return (
     <div className="bg-background text-foreground">

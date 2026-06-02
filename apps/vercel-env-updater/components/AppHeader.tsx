@@ -8,6 +8,7 @@ import { Button } from '@workspace/ui/components/button'
 import {
   HiOutlineRocketLaunch,
   HiOutlineDocumentDuplicate,
+  HiOutlineUserCircle,
   HiOutlineSun,
   HiOutlineMoon,
 } from 'react-icons/hi2'
@@ -16,6 +17,7 @@ import { cn } from '@workspace/ui/lib/utils'
 const navItems = [
   { href: '/', label: 'Get Started', icon: HiOutlineRocketLaunch },
   { href: '/bulk-update', label: 'Bulk Update', icon: HiOutlineDocumentDuplicate },
+  { href: '/account', label: 'Account', icon: HiOutlineUserCircle },
 ]
 
 export function AppHeader() {

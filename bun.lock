@@ -70,7 +70,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@prisma/adapter-pg": "^7.8.0",
-        "@prisma/client": "7.8.0",
+        "@prisma/client": "^7.8.0",
         "pg": "^8.21.0",
       },
       "devDependencies": {
@@ -80,7 +80,7 @@
         "@workspace/typescript-config": "workspace:*",
         "dotenv": "^17.4.2",
         "eslint": "^9",
-        "prisma": "7.8.0",
+        "prisma": "^7.8.0",
         "typescript": "^5",
       },
     },

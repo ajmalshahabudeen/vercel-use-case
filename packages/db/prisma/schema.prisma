@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -10,4 +8,74 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum LogLevel {
+  info
+  warn
+  error
+  success
+}
+
+enum LogSource {
+  get_started
+  bulk_update
+  account
+}
+
+/// Singleton app settings for the personal Docker instance (no auth).
+model AppSettings {
+  id          String   @id @default("singleton")
+  displayName String   @default("Local Admin")
+  email       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// Saved Vercel access tokens (private local app — stored in Postgres).
+model VercelToken {
+  id        String   @id @default(cuid())
+  label     String
+  token     String
+  scope     String   @default("")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Audit / activity log for all features.
+model ActivityLog {
+  id        String    @id @default(cuid())
+  source    LogSource
+  action    String
+  level     LogLevel  @default(info)
+  message   String
+  metadata  Json?
+  createdAt DateTime  @default(now())
+
+  @@index([source, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
+
+/// Environment variables synced from Get Started.
+model StoredEnvVar {
+  id        String   @id @default(cuid())
+  key       String
+  value     String
+  scope     String   @default("")
+  projectId String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([key, scope, projectId])
+}
+
+/// Active Vercel connection from Get Started.
+model VercelConnection {
+  id          String   @id @default("active")
+  tokenId     String?
+  vercelToken String   @default("")
+  scope       String   @default("")
+  projectId   String   @default("")
+  updatedAt   DateTime @updatedAt
 }
