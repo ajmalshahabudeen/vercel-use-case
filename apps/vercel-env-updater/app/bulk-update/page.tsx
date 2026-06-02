@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { Button } from '@workspace/ui/components/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@workspace/ui/components/card'
@@ -54,7 +54,7 @@ export default function BulkUpdatePage() {
   const [applySameValue, setApplySameValue] = React.useState(true)
   const [perProjectValues, setPerProjectValues] = React.useState<Record<string, string>>({})
 
-  const { register, handleSubmit, watch, reset } = useForm<FormValues>({
+  const { register, handleSubmit, control, reset } = useForm<FormValues>({
     defaultValues: {
       token: '',
       key: 'DATABASE_URL',
@@ -62,9 +62,11 @@ export default function BulkUpdatePage() {
     },
   })
 
-  const token = watch('token')
-  const key = watch('key')
-  const globalValue = watch('globalValue')
+  // Use useWatch (instead of watch from useForm) for React Compiler compatibility.
+  // watch() from useForm returns unstable functions that trigger "incompatible library" skip.
+  const token = useWatch({ control, name: 'token' }) ?? ''
+  const key = useWatch({ control, name: 'key' }) ?? ''
+  const globalValue = useWatch({ control, name: 'globalValue' }) ?? ''
 
   // Selected projects as array
   const selectedProjects = projects.filter((p) => selectedIds.has(p.id))
@@ -474,7 +476,7 @@ export default function BulkUpdatePage() {
                 <CardDescription>Provide a value for each selected project</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3 max-h-[380px] overflow-auto pr-1 custom-scroll">
+                <div className="space-y-3 max-h-95 overflow-auto pr-1 custom-scroll">
                   {selectedProjects.map((project) => (
                     <div key={project.id} className="flex items-center gap-3">
                       <div className="w-48 shrink-0 truncate text-sm font-medium">
