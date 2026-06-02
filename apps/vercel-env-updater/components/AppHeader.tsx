@@ -24,6 +24,7 @@ export function AppHeader() {
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional one-time mount flag for hydration-safe theme icon (standard next-themes pattern)
     setMounted(true)
   }, [])
 

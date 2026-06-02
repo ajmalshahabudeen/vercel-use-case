@@ -303,7 +303,7 @@ export default function BulkUpdatePage() {
       // Log detailed results for debugging
       console.log('Update results:', result.updateResults)
       console.log('Redeploy results:', result.redeployResults)
-    } catch (error) {
+    } catch {
       toast.error('Unexpected error during bulk update + redeploy')
     } finally {
       setIsRedeploying(false)
