@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@workspace/ui/globals.css";
+import "./globals.css";
 import { AppHeader, AppFooter, ThemeProvider } from '@vercel-env-updater/components';
 import { Toaster } from "@workspace/ui/components/sonner"
 

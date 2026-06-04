@@ -1,5 +1,27 @@
 # Task History Log (per Grok-rule.md)
 
+## 2026-06-04 : UI/UX refresh — Get Started + Bulk Update (mobile, animated)
+
+**What I did:**
+- Per Grok-rule.md: read/updated history.txt; ran lint + build for vercel-env-updater.
+- Applied frontend-design direction: industrial DevOps aesthetic, mesh hero backgrounds, staggered reveals, min-h-11 touch targets, CSS motion (no framer-motion).
+- Wired [apps/vercel-env-updater/app/globals.css](apps/vercel-env-updater/app/globals.css) via layout import: custom-scroll, env-updater-mesh, reveal-stagger, reduced-motion.
+- Added presentational components under `apps/vercel-env-updater/components/ui/`: AnimatedReveal, PageHero, StepCard, ConnectionBanner, EnvVarList, TargetToggleGroup, TargetBadgesReadonly, MobileActionBar, BulkStepProgress.
+- [app/page.tsx](apps/vercel-env-updater/app/page.tsx): recomposed UI; removed duplicate Toaster; initial envVars `[]`; reset confirm dialog; server actions unchanged (getVercelConnection, listStoredEnvVars, saveVercelConnection, syncEnvVarsToDatabase).
+- [app/bulk-update/page.tsx](apps/vercel-env-updater/app/bulk-update/page.tsx): step progress, StepCards, TargetToggleGroup, mobile sticky action bar; all handlers + useWatch preserved.
+- [AppHeader.tsx](apps/vercel-env-updater/components/AppHeader.tsx): Sheet mobile nav (md+ desktop unchanged).
+- [ProjectSelector.tsx](apps/vercel-env-updater/components/ProjectSelector.tsx): skeleton loading, selected row ring, staggered row animate-in.
+- Fixed [packages/ui/src/components/spinner.tsx](packages/ui/src/components/spinner.tsx) HugeiconsIcon strokeWidth typing (build was failing).
+
+**Why:**
+- User requested mobile-friendly, animated, easy-to-use UI on Get Started and Bulk Update without breaking server/DB logic.
+
+**Verification:**
+- `bun run lint --filter=vercel-env-updater` — exit 0
+- `bun run build --filter=vercel-env-updater` — exit 0
+
+**Status:** COMPLETE
+
 ## 2026-06-02 : Account feature — settings, tokens, logs, Prisma models, DB-backed pages
 
 **What I did:**

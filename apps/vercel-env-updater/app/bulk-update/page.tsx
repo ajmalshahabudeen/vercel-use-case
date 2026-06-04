@@ -1,14 +1,15 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
 import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { Button } from '@workspace/ui/components/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@workspace/ui/components/card'
 import { Input } from '@workspace/ui/components/input'
 import { Label } from '@workspace/ui/components/label'
 import { Switch } from '@workspace/ui/components/switch'
 import { Separator } from '@workspace/ui/components/separator'
+import { Spinner } from '@workspace/ui/components/spinner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +21,15 @@ import {
   AlertDialogTitle,
 } from '@workspace/ui/components/alert-dialog'
 
-import { ProjectSelector } from '@vercel-env-updater/components'
+import {
+  AnimatedReveal,
+  BulkStepProgress,
+  MobileActionBar,
+  ProjectSelector,
+  StepCard,
+  TargetBadgesReadonly,
+  TargetToggleGroup,
+} from '@vercel-env-updater/components'
 import {
   scanVercelProjects,
   performBulkUpdate,
@@ -44,18 +53,15 @@ export default function BulkUpdatePage() {
   const [isUpdating, setIsUpdating] = React.useState(false)
   const [isRedeploying, setIsRedeploying] = React.useState(false)
 
-  // Alert Dialog state for deploy confirmation
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [pendingAction, setPendingAction] = React.useState<'update' | 'update-redeploy' | null>(null)
 
-  // Selectable targets (subset support)
   const [selectedTargets, setSelectedTargets] = React.useState<DeploymentTarget[]>([
     'production',
     'preview',
     'development',
   ])
 
-  // Toggle: same value for all vs per-project
   const [applySameValue, setApplySameValue] = React.useState(true)
   const [perProjectValues, setPerProjectValues] = React.useState<Record<string, string>>({})
 
@@ -87,13 +93,10 @@ export default function BulkUpdatePage() {
     }
   }, [setValue])
 
-  // Use useWatch (instead of watch from useForm) for React Compiler compatibility.
-  // watch() from useForm returns unstable functions that trigger "incompatible library" skip.
   const token = useWatch({ control, name: 'token' }) ?? ''
   const key = useWatch({ control, name: 'key' }) ?? ''
   const globalValue = useWatch({ control, name: 'globalValue' }) ?? ''
 
-  // Selected projects as array
   const selectedProjects = projects.filter((p) => selectedIds.has(p.id))
 
   const toggleProject = (id: string) => {
@@ -101,7 +104,6 @@ export default function BulkUpdatePage() {
       const next = new Set(prev)
       if (next.has(id)) {
         next.delete(id)
-        // clean up per-project value if exists
         setPerProjectValues((vals) => {
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [id]: _, ...rest } = vals
@@ -120,7 +122,6 @@ export default function BulkUpdatePage() {
     setPerProjectValues({})
   }
 
-  // Scan projects
   const handleScan = async () => {
     if (!token.trim()) {
       toast.error('Please enter a Vercel access token')
@@ -145,12 +146,10 @@ export default function BulkUpdatePage() {
     }
   }
 
-  // Handle per-project value change
   const handlePerProjectValueChange = (projectId: string, value: string) => {
     setPerProjectValues((prev) => ({ ...prev, [projectId]: value }))
   }
 
-  // Execute bulk update
   const handleBulkUpdate = async (data: FormValues) => {
     if (selectedProjects.length === 0) {
       toast.error('Please select at least one project')
@@ -173,7 +172,6 @@ export default function BulkUpdatePage() {
       }
     })
 
-    // Validation for per-project mode
     if (!applySameValue) {
       const missing = projectPayload.filter((p) => !p.value)
       if (missing.length > 0) {
@@ -212,14 +210,11 @@ export default function BulkUpdatePage() {
           description: `${successes} succeeded, ${failures} failed`,
         })
       }
-
-      // Results are persisted to ActivityLog via server actions (view on Account → Logs)
     } finally {
       setIsUpdating(false)
     }
   }
 
-  // === Dialog helpers for deployment confirmation ===
   const openDeployDialog = (action: 'update' | 'update-redeploy') => {
     if (selectedProjects.length === 0) {
       toast.error('Please select at least one project')
@@ -249,11 +244,9 @@ export default function BulkUpdatePage() {
       handleSubmit(handleBulkUpdateAndRedeploy)()
     }
 
-    // Reset pending action after a short delay (dialog close animation)
     setTimeout(() => setPendingAction(null), 200)
   }
 
-  // New handler: Bulk update + Redeploy
   const handleBulkUpdateAndRedeploy = async (data: FormValues) => {
     if (selectedProjects.length === 0) {
       toast.error('Please select at least one project')
@@ -276,7 +269,6 @@ export default function BulkUpdatePage() {
       }
     })
 
-    // Validation
     if (!applySameValue) {
       const missing = projectPayload.filter((p) => !p.value)
       if (missing.length > 0) {
@@ -305,7 +297,6 @@ export default function BulkUpdatePage() {
         return
       }
 
-      // === Toasts for responses ===
       const successfulUpdates = result.updateResults.filter((r) => r.success).length
       const failedUpdates = result.updateResults.length - successfulUpdates
 
@@ -317,16 +308,13 @@ export default function BulkUpdatePage() {
           description: `Updated ${successfulUpdates} project(s) and triggered redeployment for ${successfulRedeploys} project(s).`,
         })
 
-        // Clear form fields on full success
-        reset({ token: data.token, key: '', globalValue: '' }) // keep token, clear key + value
+        reset({ token: data.token, key: '', globalValue: '' })
         setPerProjectValues({})
       } else {
         toast.warning('Operation completed with some issues', {
           description: `Updates: ${successfulUpdates} succeeded, ${failedUpdates} failed. Redeploys: ${successfulRedeploys} succeeded, ${failedRedeploys} failed.`,
         })
       }
-
-      // Detailed results are persisted to ActivityLog (Account → Logs)
     } catch {
       toast.error('Unexpected error during bulk update + redeploy')
     } finally {
@@ -334,155 +322,153 @@ export default function BulkUpdatePage() {
     }
   }
 
+  const actionsDisabled =
+    isUpdating ||
+    isRedeploying ||
+    selectedProjects.length === 0 ||
+    selectedTargets.length === 0 ||
+    !key ||
+    (applySameValue && !globalValue)
+
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="rounded-2xl bg-primary/10 p-2 text-primary">
-            <HiOutlineDocumentDuplicate className="size-6" />
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10 pb-28 sm:pb-10">
+      <AnimatedReveal className="mb-6 sm:mb-8">
+        <div className="env-updater-mesh rounded-4xl border border-border/60 p-5 sm:p-8 mb-6">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="rounded-2xl bg-primary/10 p-2.5 text-primary shrink-0">
+              <HiOutlineDocumentDuplicate className="size-6" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight">Bulk Update</h1>
+              <p className="text-sm sm:text-lg text-muted-foreground max-w-2xl mt-1">
+                Update the same environment variable across multiple Vercel projects in one go.
+              </p>
+            </div>
           </div>
-          <h1 className="text-4xl font-semibold tracking-tight">Bulk Update</h1>
+          <BulkStepProgress
+            hasToken={!!token.trim()}
+            hasKey={!!key.trim()}
+            selectedCount={selectedIds.size}
+          />
         </div>
-        <p className="text-lg text-muted-foreground max-w-2xl">
-          Update the same environment variable across multiple Vercel projects in one go.
-        </p>
-      </div>
+      </AnimatedReveal>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column - Configuration */}
-        <div className="lg:col-span-5 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <HiOutlineKey className="size-5" />
-                1. Vercel Access
-              </CardTitle>
-              <CardDescription>
-                Token is sent via secure Server Actions. Save defaults on{' '}
-                <a href="/account" className="underline underline-offset-2 hover:text-foreground">
-                  Account → Tokens
-                </a>
-                .
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Vercel Access Token</Label>
-                <Input
-                  type="password"
-                  placeholder="v3t_xxxxxxxxxxxxxxxx"
-                  {...register('token', { required: true })}
-                />
-              </div>
-
-              <Button
-                onClick={handleScan}
-                disabled={!token.trim() || isScanning}
-                className="w-full"
-                variant="secondary"
-              >
-                {isScanning ? 'Scanning...' : 'Scan Projects'}
-                <HiArrowPath className="ml-2 size-4" />
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>2. Environment Variable</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="key">Key</Label>
-                <Input
-                  id="key"
-                  placeholder="DATABASE_URL"
-                  className="font-mono"
-                  {...register('key', { required: true })}
-                />
-              </div>
-
-              {/* Target Environment Selection */}
-              <div className="space-y-2">
-                <Label>Apply to Targets</Label>
-                <div className="flex flex-wrap gap-2">
-                  {(['production', 'preview', 'development'] as const).map((target) => {
-                    const isSelected = selectedTargets.includes(target)
-                    return (
-                      <button
-                        key={target}
-                        type="button"
-                        onClick={() => {
-                          if (isSelected && selectedTargets.length === 1) {
-                            toast.error('At least one target must be selected')
-                            return
-                          }
-                          setSelectedTargets((prev) =>
-                            isSelected
-                              ? prev.filter((t) => t !== target)
-                              : [...prev, target]
-                          )
-                        }}
-                        className={`inline-flex items-center gap-1.5 rounded-2xl border px-3 py-1.5 text-sm font-medium transition-all ${
-                          isSelected
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border hover:bg-muted/60'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block size-2 rounded-full ${
-                            isSelected ? 'bg-primary' : 'bg-muted-foreground/40'
-                          }`}
-                        />
-                        {target}
-                      </button>
-                    )
-                  })}
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Selected: {selectedTargets.join(', ')}
-                </p>
-              </div>
-
-              <Separator />
-
-              {/* Same value vs per project toggle */}
-              <div className="flex items-center justify-between rounded-2xl border p-4">
-                <div>
-                  <div className="font-medium text-sm">Apply same value to all</div>
-                  <div className="text-xs text-muted-foreground">Toggle off for per-project values</div>
-                </div>
-                <Switch
-                  checked={applySameValue}
-                  onCheckedChange={(checked) => {
-                    setApplySameValue(checked)
-                    if (checked) setPerProjectValues({})
-                  }}
-                />
-              </div>
-
-              {applySameValue ? (
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+        <div className="lg:col-span-5 space-y-4 sm:space-y-6 reveal-stagger">
+          <AnimatedReveal staggerIndex={0}>
+            <StepCard
+              step={1}
+              title="Vercel Access"
+              description={
+                <>
+                  Token is sent via secure Server Actions. Save defaults on{' '}
+                  <Link href="/account" className="underline underline-offset-2 hover:text-foreground">
+                    Account → Tokens
+                  </Link>
+                  .
+                </>
+              }
+              icon={<HiOutlineKey className="size-5" />}
+            >
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Value (applied to all selected projects)</Label>
+                  <Label>Vercel Access Token</Label>
                   <Input
-                    placeholder="postgresql://user:pass@host/db"
-                    className="font-mono"
-                    {...register('globalValue')}
+                    type="password"
+                    autoComplete="off"
+                    placeholder="v3t_xxxxxxxxxxxxxxxx"
+                    className="min-h-11"
+                    {...register('token', { required: true })}
                   />
                 </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">
-                  Enter individual values below for each selected project.
+
+                <Button
+                  type="button"
+                  onClick={handleScan}
+                  disabled={!token.trim() || isScanning}
+                  className="w-full min-h-11"
+                  variant="secondary"
+                >
+                  {isScanning ? (
+                    <>
+                      <Spinner className="mr-2" />
+                      Scanning...
+                    </>
+                  ) : (
+                    <>
+                      Scan Projects
+                      <HiArrowPath className="ml-2 size-4" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            </StepCard>
+          </AnimatedReveal>
+
+          <AnimatedReveal staggerIndex={1}>
+            <StepCard step={2} title="Environment Variable">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="key">Key</Label>
+                  <Input
+                    id="key"
+                    placeholder="DATABASE_URL"
+                    className="font-mono min-h-11"
+                    {...register('key', { required: true })}
+                  />
                 </div>
-              )}
-            </CardContent>
-          </Card>
+
+                <div className="space-y-2">
+                  <Label>Apply to Targets</Label>
+                  <TargetToggleGroup
+                    selected={selectedTargets}
+                    onChange={setSelectedTargets}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Selected: {selectedTargets.join(', ')}
+                  </p>
+                </div>
+
+                <Separator />
+
+                <div className="flex items-center justify-between gap-3 rounded-2xl border p-4 min-h-11">
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm">Apply same value to all</div>
+                    <div className="text-xs text-muted-foreground">
+                      Toggle off for per-project values
+                    </div>
+                  </div>
+                  <Switch
+                    checked={applySameValue}
+                    onCheckedChange={(checked) => {
+                      setApplySameValue(checked)
+                      if (checked) setPerProjectValues({})
+                    }}
+                  />
+                </div>
+
+                {applySameValue ? (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <Label>Value (applied to all selected projects)</Label>
+                    <Input
+                      placeholder="postgresql://user:pass@host/db"
+                      className="font-mono min-h-11"
+                      {...register('globalValue')}
+                    />
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground animate-in fade-in duration-200">
+                    Enter individual values below for each selected project.
+                  </p>
+                )}
+              </div>
+            </StepCard>
+          </AnimatedReveal>
         </div>
 
-        {/* Right Column - Project Selection + Values */}
-        <div className="lg:col-span-7 space-y-6">
-          <Card>
-            <CardContent className="pt-6">
+        <div className="lg:col-span-7 space-y-4 sm:space-y-6">
+          <AnimatedReveal staggerIndex={2}>
+            <StepCard step={3} title="Select Projects" contentClassName="pt-2">
               <ProjectSelector
                 projects={projects}
                 selectedIds={selectedIds}
@@ -491,131 +477,159 @@ export default function BulkUpdatePage() {
                 onDeselectAll={deselectAll}
                 isLoading={isScanning}
               />
-            </CardContent>
-          </Card>
+            </StepCard>
+          </AnimatedReveal>
 
-          {/* Per-project value inputs (only when toggle is off) */}
           {!applySameValue && selectedProjects.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Per-Project Values</CardTitle>
-                <CardDescription>Provide a value for each selected project</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 max-h-95 overflow-auto pr-1 custom-scroll">
+            <AnimatedReveal>
+              <StepCard
+                title="Per-Project Values"
+                description="Provide a value for each selected project"
+              >
+                <div className="space-y-4 max-h-[min(380px,50vh)] overflow-auto pr-1 custom-scroll">
                   {selectedProjects.map((project) => (
-                    <div key={project.id} className="flex items-center gap-3">
-                      <div className="w-48 shrink-0 truncate text-sm font-medium">
-                        {project.name}
+                    <div
+                      key={project.id}
+                      className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-2xl border p-3 sm:border-0 sm:p-0"
+                    >
+                      <div className="sm:w-40 md:w-48 shrink-0">
+                        <div className="text-sm font-medium truncate">{project.name}</div>
+                        <div className="text-[10px] text-muted-foreground font-mono truncate">
+                          {project.id}
+                        </div>
                       </div>
                       <Input
                         placeholder="Value for this project"
-                        className="font-mono flex-1"
+                        className="font-mono flex-1 min-h-11"
                         value={perProjectValues[project.id] ?? ''}
                         onChange={(e) => handlePerProjectValueChange(project.id, e.target.value)}
                       />
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+              </StepCard>
+            </AnimatedReveal>
           )}
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-3">
+          <div className="hidden sm:flex justify-end gap-3 flex-wrap">
             <Button
               size="lg"
               onClick={() => openDeployDialog('update')}
-              disabled={
-                isUpdating ||
-                isRedeploying ||
-                selectedProjects.length === 0 ||
-                selectedTargets.length === 0 ||
-                !key ||
-                (applySameValue && !globalValue)
-              }
+              disabled={actionsDisabled}
               variant="secondary"
-              className="min-w-52"
+              className="min-w-52 min-h-11"
             >
-              {isUpdating ? 'Updating...' : `Bulk Update ${selectedProjects.length} Project(s)`}
+              {isUpdating ? (
+                <>
+                  <Spinner className="mr-2" />
+                  Updating...
+                </>
+              ) : (
+                `Bulk Update ${selectedProjects.length} Project(s)`
+              )}
             </Button>
 
             <Button
               size="lg"
               onClick={() => openDeployDialog('update-redeploy')}
-              disabled={
-                isUpdating ||
-                isRedeploying ||
-                selectedProjects.length === 0 ||
-                selectedTargets.length === 0 ||
-                !key ||
-                (applySameValue && !globalValue)
-              }
-              className="min-w-60"
+              disabled={actionsDisabled}
+              className="min-w-60 min-h-11"
             >
-              {isRedeploying
-                ? 'Updating & Redeploying...'
-                : `Bulk update and redeploy`}
+              {isRedeploying ? (
+                <>
+                  <Spinner className="mr-2" />
+                  Updating & Redeploying...
+                </>
+              ) : (
+                'Bulk update and redeploy'
+              )}
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="mt-8 text-xs text-muted-foreground">
-        All API calls run via Server Actions in <code>/server</code>. Activity is logged to Postgres — view on{' '}
-        <a href="/account" className="underline underline-offset-2 hover:text-foreground">Account → Logs</a>.
-      </div>
+      <p className="mt-6 sm:mt-8 text-xs text-muted-foreground text-center sm:text-left">
+        All API calls run via Server Actions in <code className="text-[11px]">/server</code>. Activity
+        is logged to Postgres — view on{' '}
+        <Link href="/account" className="underline underline-offset-2 hover:text-foreground">
+          Account → Logs
+        </Link>
+        .
+      </p>
 
-      {/* Deployment Confirmation Dialog */}
+      <MobileActionBar>
+        <Button
+          size="lg"
+          className="w-full min-h-11"
+          onClick={() => openDeployDialog('update-redeploy')}
+          disabled={actionsDisabled}
+        >
+          {isRedeploying ? (
+            <>
+              <Spinner className="mr-2" />
+              Updating & Redeploying...
+            </>
+          ) : (
+            `Update & redeploy (${selectedProjects.length})`
+          )}
+        </Button>
+        <Button
+          size="lg"
+          variant="secondary"
+          className="w-full min-h-11"
+          onClick={() => openDeployDialog('update')}
+          disabled={actionsDisabled}
+        >
+          {isUpdating ? (
+            <>
+              <Spinner className="mr-2" />
+              Updating...
+            </>
+          ) : (
+            `Bulk update (${selectedProjects.length})`
+          )}
+        </Button>
+      </MobileActionBar>
+
       <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Environment Update</AlertDialogTitle>
             <AlertDialogDescription>
-              You are about to update the environment variable <span className="font-mono font-medium text-foreground">{key || '—'}</span> across{' '}
-              <span className="font-medium text-foreground">{selectedProjects.length}</span> selected project(s) on{' '}
-              <span className="font-medium text-foreground">{selectedTargets.length}</span> target environment(s).
+              You are about to update{' '}
+              <span className="font-mono font-medium text-foreground">{key || '—'}</span> across{' '}
+              <span className="font-medium text-foreground">{selectedProjects.length}</span>{' '}
+              project(s) on{' '}
+              <span className="font-medium text-foreground">{selectedTargets.length}</span> target
+              environment(s).
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          <div className="rounded-3xl border bg-muted/40 p-4">
+          <div className="rounded-3xl border bg-muted/40 p-4 max-h-48 overflow-y-auto custom-scroll">
             <div className="text-xs font-medium text-muted-foreground mb-2">
-              This change will apply to the following targets ({selectedTargets.length} selected):
+              Targets ({selectedTargets.length} selected):
             </div>
-            <div className="flex flex-wrap gap-2">
-              {(['production', 'preview', 'development'] as const).map((target) => {
-                const isSelected = selectedTargets.includes(target)
-                return (
-                  <div
-                    key={target}
-                    className={`inline-flex items-center rounded-2xl border px-3 py-1 text-sm font-medium ${
-                      isSelected
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border opacity-50'
-                    }`}
-                  >
-                    {target}
-                  </div>
-                )
-              })}
-            </div>
+            <TargetBadgesReadonly selected={selectedTargets} />
             {!selectedTargets.length && (
               <p className="mt-2 text-xs text-destructive">No targets selected!</p>
             )}
           </div>
 
           {pendingAction === 'update-redeploy' && (
-            <div className="text-sm text-muted-foreground">
-              After updating the variables, a new deployment will be triggered for each successfully updated project.
-            </div>
+            <p className="text-sm text-muted-foreground">
+              After updating, a new deployment will be triggered for each successfully updated
+              project.
+            </p>
           )}
 
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingAction(null)}>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel onClick={() => setPendingAction(null)} className="min-h-11">
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeployment}>
-              {pendingAction === 'update-redeploy' ? 'Update & Redeploy' : 'Update Environment Variables'}
+            <AlertDialogAction onClick={confirmDeployment} className="min-h-11">
+              {pendingAction === 'update-redeploy'
+                ? 'Update & Redeploy'
+                : 'Update Environment Variables'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
