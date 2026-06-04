@@ -2,7 +2,7 @@
 
 import React from "react"
 import Link from "next/link"
-import { useForm } from "react-hook-form"
+import { Controller, useForm } from "react-hook-form"
 import { create } from "zustand"
 import { toast } from "sonner"
 
@@ -19,6 +19,7 @@ import {
   ConnectionBanner,
   EnvVarList,
   PageHero,
+  ProjectCombobox,
   StepCard,
 } from "@vercel-env-updater/components"
 
@@ -149,10 +150,15 @@ export default function VercelEnvUpdaterPage() {
     register,
     handleSubmit,
     reset: resetForm,
+    control,
+    watch,
     formState: { isSubmitting },
   } = useForm<{ token: string; scope: string; projectId: string }>({
     defaultValues: { token: "", scope: "", projectId: "" },
   })
+
+  const token = watch("token")
+  const scope = watch("scope")
 
   const credentialsToastShown = React.useRef(false)
 
@@ -310,13 +316,21 @@ export default function VercelEnvUpdaterPage() {
                     <Label htmlFor="scope">Team / Scope (optional)</Label>
                     <Input id="scope" placeholder="my-team" className="min-h-11" {...register("scope")} />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="projectId">Project ID or Name</Label>
-                    <Input
-                      id="projectId"
-                      placeholder="my-awesome-app"
-                      className="min-h-11"
-                      {...register("projectId")}
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="projectId">Project</Label>
+                    <Controller
+                      name="projectId"
+                      control={control}
+                      render={({ field }) => (
+                        <ProjectCombobox
+                          id="projectId"
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          token={token}
+                          scope={scope}
+                          disabled={isSubmitting}
+                        />
+                      )}
                     />
                   </div>
                 </div>

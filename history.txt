@@ -1,5 +1,22 @@
 # Task History Log (per Grok-rule.md)
 
+## 2026-06-04 : Project combobox on Get Started (search + refresh)
+
+**What I did:**
+- Per Grok-rule.md: updated history.txt; ran lint + build for vercel-env-updater.
+- Added [components/ProjectCombobox.tsx](apps/vercel-env-updater/components/ProjectCombobox.tsx): shadcn/Base UI `Combobox` from `@workspace/ui`, loads projects via `scanVercelProjects(token, scope)`, searchable list (name + id), refresh button without full page reload, warns when token/scope changes after load.
+- [app/page.tsx](apps/vercel-env-updater/app/page.tsx): replaced plain `Input` for project with `Controller` + `ProjectCombobox`; `watch('token')` / `watch('scope')` drive fetch eligibility.
+- Exported `ProjectCombobox` from [components/index.ts](apps/vercel-env-updater/components/index.ts).
+
+**Why:**
+- User asked for combobox on Connect step so they can search/select Vercel projects and refresh the list in place.
+
+**Verification:**
+- `bun run lint --filter=vercel-env-updater` — exit 0
+- `bun run build --filter=vercel-env-updater` — exit 0
+
+**Status:** COMPLETE
+
 ## 2026-06-04 : Fix bulk update + redeploy + auto-load credentials on Get Started
 
 **What I did:**

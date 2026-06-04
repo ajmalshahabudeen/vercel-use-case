@@ -1,6 +1,7 @@
 export * from './AppHeader'
 export * from './AppFooter'
 export * from './ProjectSelector'
+export * from './ProjectCombobox'
 export * from './ThemeProvider'
 export * from './ui/AnimatedReveal'
 export * from './ui/PageHero'
