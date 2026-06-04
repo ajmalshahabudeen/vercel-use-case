@@ -152,7 +152,7 @@ export async function syncEnvVarsToDatabase(params: {
     }
 
     try {
-      await listProjects(config.vercelToken.trim())
+      await listProjects(config.vercelToken.trim(), config.scope?.trim())
       vercelValidated = true
     } catch {
       vercelValidated = false

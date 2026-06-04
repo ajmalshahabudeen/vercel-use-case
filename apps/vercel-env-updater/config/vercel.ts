@@ -7,7 +7,8 @@ export const DEFAULT_TARGETS: DeploymentTarget[] = ['production', 'preview', 'de
 export const VERCEL_ENDPOINTS = {
   projects: '/v9/projects',
   env: (projectIdOrName: string) => `/v10/projects/${projectIdOrName}/env`,
-  // For updating existing envs you can also use PATCH /v10/projects/{id}/env/{envId}
+  deployments: '/v7/deployments',
+  createDeployment: '/v13/deployments',
 } as const
 
 export const VERCEL_HEADERS = (token: string) => ({

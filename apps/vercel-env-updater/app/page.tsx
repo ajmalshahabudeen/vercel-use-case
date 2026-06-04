@@ -8,6 +8,7 @@ import { toast } from "sonner"
 
 import {
   getVercelConnection,
+  getDefaultVercelToken,
   listStoredEnvVars,
   saveVercelConnection,
   syncEnvVarsToDatabase,
@@ -153,6 +154,8 @@ export default function VercelEnvUpdaterPage() {
     defaultValues: { token: "", scope: "", projectId: "" },
   })
 
+  const credentialsToastShown = React.useRef(false)
+
   const onConnectSubmit = async (data: { token: string; scope: string; projectId: string }) => {
     const newConfig: EnvConfig = {
       vercelToken: data.token.trim(),
@@ -195,19 +198,38 @@ export default function VercelEnvUpdaterPage() {
 
     async function loadFromDatabase() {
       try {
-        const [connection, storedVars] = await Promise.all([
+        const [connection, storedVars, defaultToken] = await Promise.all([
           getVercelConnection(),
           listStoredEnvVars(),
+          getDefaultVercelToken(),
         ])
 
         if (cancelled) return
 
-        if (connection) {
-          setConfig({
-            vercelToken: connection.vercelToken,
-            scope: connection.scope,
-            projectId: connection.projectId,
-          })
+        const token = connection?.vercelToken || defaultToken?.token || ""
+        const scope = connection?.scope || defaultToken?.scope || ""
+        const projectId = connection?.projectId || ""
+
+        if (token) {
+          resetForm({ token, scope, projectId })
+
+          if (connection) {
+            setConfig({
+              vercelToken: connection.vercelToken,
+              scope: connection.scope,
+              projectId: connection.projectId,
+            })
+          } else {
+            setConfig({ vercelToken: token, scope, projectId })
+          }
+
+          if (!credentialsToastShown.current) {
+            credentialsToastShown.current = true
+            const source = connection
+              ? "saved Vercel connection"
+              : `default token (${defaultToken?.label ?? "Account"})`
+            toast.info(`Loaded ${source}`, { duration: 3000 })
+          }
         }
 
         if (storedVars.length > 0) {
@@ -226,7 +248,7 @@ export default function VercelEnvUpdaterPage() {
     return () => {
       cancelled = true
     }
-  }, [setConfig])
+  }, [setConfig, resetForm])
 
   return (
     <div className="bg-background text-foreground pb-8">

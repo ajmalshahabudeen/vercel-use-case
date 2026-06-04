@@ -35,6 +35,7 @@ import {
   performBulkUpdate,
   performBulkUpdateAndRedeploy,
   getDefaultVercelToken,
+  getVercelConnection,
 } from '@vercel-env-updater/server'
 import type { VercelProject, DeploymentTarget } from '@vercel-env-updater/config'
 
@@ -64,6 +65,7 @@ export default function BulkUpdatePage() {
 
   const [applySameValue, setApplySameValue] = React.useState(true)
   const [perProjectValues, setPerProjectValues] = React.useState<Record<string, string>>({})
+  const [teamScope, setTeamScope] = React.useState('')
 
   const { register, handleSubmit, control, reset, setValue } = useForm<FormValues>({
     defaultValues: {
@@ -76,18 +78,32 @@ export default function BulkUpdatePage() {
   React.useEffect(() => {
     let cancelled = false
 
-    async function loadDefaultToken() {
+    async function loadSavedCredentials() {
       try {
-        const defaultToken = await getDefaultVercelToken()
-        if (cancelled || !defaultToken?.token) return
-        setValue('token', defaultToken.token)
-        toast.info(`Loaded default token: ${defaultToken.label}`, { duration: 3000 })
+        const [connection, defaultToken] = await Promise.all([
+          getVercelConnection(),
+          getDefaultVercelToken(),
+        ])
+
+        if (cancelled) return
+
+        const token = connection?.vercelToken || defaultToken?.token
+        const scope = connection?.scope || defaultToken?.scope || ''
+
+        if (token) {
+          setValue('token', token)
+          setTeamScope(scope)
+          const source = connection
+            ? 'saved Vercel connection'
+            : `default token (${defaultToken?.label ?? 'Account'})`
+          toast.info(`Loaded ${source}`, { duration: 3000 })
+        }
       } catch {
         // DB unavailable — user can paste token manually
       }
     }
 
-    loadDefaultToken()
+    void loadSavedCredentials()
     return () => {
       cancelled = true
     }
@@ -130,7 +146,7 @@ export default function BulkUpdatePage() {
 
     setIsScanning(true)
     try {
-      const result = await scanVercelProjects(token)
+      const result = await scanVercelProjects(token, teamScope)
 
       if (result.error) {
         toast.error('Failed to scan projects', { description: result.error })
@@ -193,6 +209,7 @@ export default function BulkUpdatePage() {
         key: data.key,
         projects: projectPayload,
         targets: selectedTargets,
+        scope: teamScope,
       })
 
       if (result.error) {
@@ -202,12 +219,15 @@ export default function BulkUpdatePage() {
 
       const successes = result.results.filter((r) => r.success).length
       const failures = result.results.length - successes
+      const firstFailure = result.results.find((r) => !r.success)
 
       if (failures === 0) {
         toast.success(`Successfully updated "${data.key}" on ${successes} project(s)`)
       } else {
         toast.warning(`Completed with ${failures} error(s)`, {
-          description: `${successes} succeeded, ${failures} failed`,
+          description:
+            firstFailure?.error ??
+            `${successes} succeeded, ${failures} failed`,
         })
       }
     } finally {
@@ -290,6 +310,7 @@ export default function BulkUpdatePage() {
         key: data.key,
         projects: projectPayload,
         targets: selectedTargets,
+        scope: teamScope,
       })
 
       if (result.error) {
@@ -303,16 +324,32 @@ export default function BulkUpdatePage() {
       const successfulRedeploys = result.redeployResults.filter((r) => r.success).length
       const failedRedeploys = result.redeployResults.length - successfulRedeploys
 
+      const firstUpdateFailure = result.updateResults.find((r) => !r.success)
+      const firstRedeployFailure = result.redeployResults.find((r) => !r.success)
+
       if (failedUpdates === 0 && failedRedeploys === 0) {
         toast.success('Bulk update + redeploy completed successfully!', {
-          description: `Updated ${successfulUpdates} project(s) and triggered redeployment for ${successfulRedeploys} project(s).`,
+          description: `Updated ${successfulUpdates} project(s) and triggered ${successfulRedeploys} deployment(s).`,
         })
 
         reset({ token: data.token, key: '', globalValue: '' })
         setPerProjectValues({})
       } else {
+        const detail = [
+          failedUpdates > 0
+            ? `Update: ${firstUpdateFailure?.projectName ?? 'project'} — ${firstUpdateFailure?.error ?? 'failed'}`
+            : null,
+          failedRedeploys > 0
+            ? `Redeploy (${firstRedeployFailure?.target ?? 'target'}): ${firstRedeployFailure?.projectName ?? 'project'} — ${firstRedeployFailure?.error ?? 'failed'}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+
         toast.warning('Operation completed with some issues', {
-          description: `Updates: ${successfulUpdates} succeeded, ${failedUpdates} failed. Redeploys: ${successfulRedeploys} succeeded, ${failedRedeploys} failed.`,
+          description:
+            detail ||
+            `Updates: ${successfulUpdates} ok, ${failedUpdates} failed. Redeploys: ${successfulRedeploys} ok, ${failedRedeploys} failed.`,
         })
       }
     } catch {

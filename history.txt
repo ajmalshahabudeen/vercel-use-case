@@ -1,5 +1,27 @@
 # Task History Log (per Grok-rule.md)
 
+## 2026-06-04 : Fix bulk update + redeploy + auto-load credentials on Get Started
+
+**What I did:**
+- Per Grok-rule.md: updated history.txt; ran lint + build for vercel-env-updater.
+- Fixed [server/vercel-client.ts](apps/vercel-env-updater/server/vercel-client.ts):
+  - Env upsert now sends `upsert=true` and validates Vercel `{ created, failed }` response (was treating any 201 as success without updating existing keys).
+  - Redeploy fetches latest READY deployment via `GET /v7/deployments`, then `POST /v13/deployments` with `deploymentId` (previous bare `project`+`target` body did not trigger real git redeploys).
+  - Redeploy runs per selected production/preview target (development env vars update only; no deployment).
+  - Optional team `scope` passed as `slug` query param on Vercel API calls.
+- Updated [server/actions.ts](apps/vercel-env-updater/server/actions.ts) and [config/vercel.ts](apps/vercel-env-updater/config/vercel.ts) for scope + deployment endpoints.
+- [app/bulk-update/page.tsx](apps/vercel-env-updater/app/bulk-update/page.tsx): load token from `getVercelConnection` or `getDefaultVercelToken`; pass `scope` to scan/update/redeploy; clearer error toasts with first Vercel failure message.
+- [app/page.tsx](apps/vercel-env-updater/app/page.tsx): prefill connect form (token, scope, projectId) from saved connection or default account token (same pattern as bulk-update).
+
+**Why:**
+- User reported `performBulkUpdateAndRedeploy` returning 200 in ~800ms but not actually updating env vars or redeploying; also wanted Get Started to auto-load saved token/details like Bulk Update.
+
+**Verification:**
+- `bun run lint --filter=vercel-env-updater` — exit 0
+- `bun run build --filter=vercel-env-updater` — exit 0
+
+**Status:** COMPLETE
+
 ## 2026-06-04 : UI/UX refresh — Get Started + Bulk Update (mobile, animated)
 
 **What I did:**

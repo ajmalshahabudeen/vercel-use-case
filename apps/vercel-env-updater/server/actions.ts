@@ -8,13 +8,16 @@ import { DEFAULT_TARGETS } from '@vercel-env-updater/config'
 /**
  * Server Action: Scan Vercel projects for the given token.
  */
-export async function scanVercelProjects(token: string): Promise<ScanProjectsResult> {
+export async function scanVercelProjects(
+  token: string,
+  scope?: string
+): Promise<ScanProjectsResult> {
   if (!token || token.trim().length < 10) {
     return { projects: [], error: 'Invalid or missing Vercel access token' }
   }
 
   try {
-    const projects = await listProjects(token.trim())
+    const projects = await listProjects(token.trim(), scope?.trim())
 
     await writeActivityLog({
       source: 'bulk_update',
@@ -52,12 +55,13 @@ export async function performBulkUpdate(params: {
   key: string
   projects: Array<{ id: string; name: string; value: string }>
   targets?: DeploymentTarget[]
+  scope?: string
 }): Promise<{
   success: boolean
   results: BulkUpdateResult[]
   error?: string
 }> {
-  const { token, key, projects, targets = DEFAULT_TARGETS } = params
+  const { token, key, projects, targets = DEFAULT_TARGETS, scope } = params
 
   if (!token || !key || projects.length === 0) {
     return {
@@ -68,7 +72,13 @@ export async function performBulkUpdate(params: {
   }
 
   try {
-    const results = await bulkUpsertEnv(token.trim(), key.trim(), projects, targets)
+    const results = await bulkUpsertEnv(
+      token.trim(),
+      key.trim(),
+      projects,
+      targets,
+      scope?.trim()
+    )
 
     const hasFailures = results.some((r) => !r.success)
     const successes = results.filter((r) => r.success).length
@@ -118,19 +128,21 @@ export async function performBulkUpdateAndRedeploy(params: {
   key: string
   projects: Array<{ id: string; name: string; value: string }>
   targets?: DeploymentTarget[]
+  scope?: string
 }): Promise<{
   success: boolean
   updateResults: BulkUpdateResult[]
   redeployResults: Array<{
     projectId: string
     projectName: string
+    target: 'production' | 'preview'
     success: boolean
     error?: string
     deploymentId?: string
   }>
   error?: string
 }> {
-  const { token, key, projects, targets = DEFAULT_TARGETS } = params
+  const { token, key, projects, targets = DEFAULT_TARGETS, scope } = params
 
   if (!token || !key || projects.length === 0) {
     return {
@@ -146,7 +158,8 @@ export async function performBulkUpdateAndRedeploy(params: {
       token.trim(),
       key.trim(),
       projects,
-      targets
+      targets,
+      scope?.trim()
     )
 
     const allUpdatesSucceeded = updateResults.every((r) => r.success)
