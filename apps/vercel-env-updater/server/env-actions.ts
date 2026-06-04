@@ -1,13 +1,16 @@
 'use server'
 
 import { prisma } from '@workspace/db'
-import { listProjects } from './vercel-client'
+import { DEFAULT_TARGETS } from '@vercel-env-updater/config'
+import type { DeploymentTarget } from '@vercel-env-updater/config'
+import { listProjects, redeployProjectTargets, upsertProjectEnvVars } from './vercel-client'
 import { maskToken, writeActivityLog } from './log'
 
 export type EnvConfigDTO = {
   vercelToken: string
   scope: string
   projectId: string
+  projectName?: string
   tokenId?: string | null
 }
 
@@ -27,6 +30,7 @@ export async function getVercelConnection(): Promise<EnvConfigDTO | null> {
         vercelToken: tokenRecord.token,
         scope: conn.scope || tokenRecord.scope,
         projectId: conn.projectId,
+        projectName: conn.projectName,
         tokenId: conn.tokenId,
       }
     }
@@ -36,6 +40,7 @@ export async function getVercelConnection(): Promise<EnvConfigDTO | null> {
     vercelToken: conn.vercelToken,
     scope: conn.scope,
     projectId: conn.projectId,
+    projectName: conn.projectName,
     tokenId: conn.tokenId,
   }
 }
@@ -46,6 +51,7 @@ export async function saveVercelConnection(
   const vercelToken = config.vercelToken.trim()
   const scope = config.scope.trim()
   const projectId = config.projectId.trim()
+  const projectName = config.projectName?.trim() ?? ''
 
   if (!vercelToken) {
     return { success: false, error: 'Vercel token is required' }
@@ -59,12 +65,14 @@ export async function saveVercelConnection(
         vercelToken,
         scope,
         projectId,
+        projectName,
         tokenId: config.tokenId ?? null,
       },
       update: {
         vercelToken,
         scope,
         projectId,
+        projectName,
         tokenId: config.tokenId ?? null,
       },
     })
@@ -77,6 +85,7 @@ export async function saveVercelConnection(
       metadata: {
         scope: scope || 'personal',
         projectId: projectId || null,
+        projectName: projectName || null,
         maskedToken: maskToken(vercelToken),
       },
     })
@@ -186,6 +195,131 @@ export async function syncEnvVarsToDatabase(params: {
       message: 'Failed to sync environment variables',
     })
     return { success: false, error: 'Sync failed — check database connection' }
+  }
+}
+
+async function resolveProject(
+  config: EnvConfigDTO
+): Promise<{ id: string; name: string } | { error: string }> {
+  const projectId = config.projectId.trim()
+  if (!projectId) {
+    return { error: 'Select a Vercel project before deploying' }
+  }
+
+  const nameFromConfig = config.projectName?.trim()
+  if (nameFromConfig) {
+    return { id: projectId, name: nameFromConfig }
+  }
+
+  try {
+    const projects = await listProjects(config.vercelToken.trim(), config.scope?.trim())
+    const match = projects.find((p) => p.id === projectId)
+    if (match) {
+      return { id: match.id, name: match.name }
+    }
+  } catch {
+    // fall through to id-only
+  }
+
+  return { id: projectId, name: projectId }
+}
+
+export async function syncEnvVarsAndDeploy(params: {
+  config: EnvConfigDTO
+  envVars: StoredEnvVarDTO[]
+  targets?: DeploymentTarget[]
+}): Promise<{
+  success: boolean
+  syncCount?: number
+  error?: string
+  vercelValidated?: boolean
+  envResults?: Array<{ key: string; success: boolean; error?: string }>
+  redeployResults?: Array<{
+    target: 'production' | 'preview'
+    success: boolean
+    error?: string
+    deploymentId?: string
+  }>
+}> {
+  const { config, envVars, targets = DEFAULT_TARGETS } = params
+
+  const syncResult = await syncEnvVarsToDatabase({ config, envVars })
+  if (!syncResult.success) {
+    return syncResult
+  }
+
+  const project = await resolveProject(config)
+  if ('error' in project) {
+    return { success: false, error: project.error }
+  }
+
+  const token = config.vercelToken.trim()
+  const scope = config.scope?.trim()
+
+  const envResults = await upsertProjectEnvVars(token, project, envVars, targets, scope)
+  const envFailures = envResults.filter((r) => !r.success)
+
+  if (envFailures.length > 0) {
+    const first = envFailures[0]
+    await writeActivityLog({
+      source: 'get_started',
+      action: 'sync-deploy',
+      level: 'warn',
+      message: `Saved to Postgres; Vercel env update failed for "${first.key}"`,
+      metadata: {
+        projectId: project.id,
+        projectName: project.name,
+        failures: envFailures.length,
+      },
+    })
+
+    return {
+      success: false,
+      syncCount: syncResult.syncCount,
+      vercelValidated: syncResult.vercelValidated,
+      envResults,
+      error: first.error ?? `Failed to update ${first.key} on Vercel`,
+    }
+  }
+
+  const redeployResults = await redeployProjectTargets(token, project, targets, scope)
+  const redeployFailures = redeployResults.filter((r) => !r.success)
+  const overallSuccess = redeployFailures.length === 0
+
+  await writeActivityLog({
+    source: 'get_started',
+    action: 'sync-deploy',
+    level: overallSuccess ? 'success' : 'warn',
+    message: overallSuccess
+      ? `Synced ${envVars.length} var(s) and deployed "${project.name}"`
+      : `Synced vars; deploy issues on ${project.name}`,
+    metadata: {
+      projectId: project.id,
+      projectName: project.name,
+      envCount: envVars.length,
+      redeploySuccesses: redeployResults.filter((r) => r.success).length,
+      redeployFailures: redeployFailures.length,
+    },
+  })
+
+  if (!overallSuccess) {
+    const firstRedeploy = redeployFailures[0]
+    return {
+      success: false,
+      syncCount: syncResult.syncCount,
+      vercelValidated: syncResult.vercelValidated,
+      envResults,
+      redeployResults,
+      error: firstRedeploy.error ?? `Failed to redeploy (${firstRedeploy.target})`,
+    }
+  }
+
+  return {
+    success: true,
+    syncCount: syncResult.syncCount,
+    vercelValidated: syncResult.vercelValidated,
+    envResults,
+    redeployResults,
   }
 }
 

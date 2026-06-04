@@ -1,5 +1,28 @@
 # Task History Log (per Grok-rule.md)
 
+## 2026-06-04 : Get Started — Save and deploy + project name in banner
+
+**What I did:**
+- Per Grok-rule.md: updated history.txt; ran prisma generate, lint + build.
+- [packages/db/prisma/schema.prisma](packages/db/prisma/schema.prisma): `VercelConnection.projectName` for persisted display name.
+- [server/vercel-client.ts](apps/vercel-env-updater/server/vercel-client.ts): `upsertProjectEnvVars`, `redeployProjectTargets` for single-project push + deploy.
+- [server/env-actions.ts](apps/vercel-env-updater/server/env-actions.ts): `syncEnvVarsAndDeploy` (Postgres sync → Vercel env upsert → redeploy); `projectName` on connect DTO/save/load.
+- [app/page.tsx](apps/vercel-env-updater/app/page.tsx): secondary “Sync to Database” + primary “Save and deploy” with confirm dialog; `isDeploying` state; combobox sets `projectName`.
+- [components/ui/ConnectionBanner.tsx](apps/vercel-env-updater/components/ui/ConnectionBanner.tsx): shows `ProjectName (projectId)` when name known.
+- [components/ProjectCombobox.tsx](apps/vercel-env-updater/components/ProjectCombobox.tsx): `onProjectSelect` callback.
+
+**Why:**
+- User wanted two save paths (DB-only vs save + Vercel deploy like bulk-update) and readable project label on connection banner.
+
+**Verification:**
+- `bun run --cwd packages/db prisma generate` — exit 0
+- `bun run lint --filter=vercel-env-updater` — exit 0
+- `bun run build --filter=vercel-env-updater` — exit 0
+
+**Note:** Run `bun run --cwd packages/db db:push` when Postgres is up to add `projectName` column.
+
+**Status:** COMPLETE
+
 ## 2026-06-04 : Project combobox on Get Started (search + refresh)
 
 **What I did:**

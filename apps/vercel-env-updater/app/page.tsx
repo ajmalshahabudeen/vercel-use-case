@@ -12,6 +12,7 @@ import {
   listStoredEnvVars,
   saveVercelConnection,
   syncEnvVarsToDatabase,
+  syncEnvVarsAndDeploy,
 } from "@vercel-env-updater/server"
 
 import {
@@ -54,6 +55,7 @@ type EnvConfig = {
   vercelToken: string
   scope: string
   projectId: string
+  projectName?: string
 }
 
 interface UpdaterStore {
@@ -61,10 +63,12 @@ interface UpdaterStore {
   envVars: Array<{ key: string; value: string }>
   syncCount: number
   isSyncing: boolean
+  isDeploying: boolean
   setConfig: (config: EnvConfig) => void
   addEnvVar: (key: string, value: string) => void
   removeEnvVar: (index: number) => void
   syncToDatabase: () => Promise<void>
+  syncAndDeploy: () => Promise<void>
   reset: () => void
 }
 
@@ -73,6 +77,7 @@ const useUpdaterStore = create<UpdaterStore>((set, get) => ({
   envVars: [],
   syncCount: 0,
   isSyncing: false,
+  isDeploying: false,
 
   setConfig: (config) => {
     set({ config })
@@ -130,7 +135,45 @@ const useUpdaterStore = create<UpdaterStore>((set, get) => ({
     }
   },
 
-  reset: () => set({ config: null, envVars: [], syncCount: 0 }),
+  syncAndDeploy: async () => {
+    const { envVars, config } = get()
+    if (!config || envVars.length === 0) return
+    if (!config.projectId.trim()) {
+      toast.error("Select a project", {
+        description: "Choose a project in step 1 before saving and deploying",
+      })
+      return
+    }
+
+    set({ isDeploying: true })
+
+    try {
+      const result = await syncEnvVarsAndDeploy({ config, envVars })
+
+      if (!result.success) {
+        set({ isDeploying: false })
+        toast.error("Save and deploy failed", { description: result.error })
+        return
+      }
+
+      set((state) => ({
+        syncCount: state.syncCount + 1,
+        isDeploying: false,
+      }))
+
+      const redeployCount = result.redeployResults?.filter((r) => r.success).length ?? 0
+      toast.success(`Saved ${envVars.length} vars and triggered deployment`, {
+        description: `Updated Vercel env on ${config.projectName || config.projectId} · ${redeployCount} deployment(s) started`,
+      })
+    } catch {
+      set({ isDeploying: false })
+      toast.error("Save and deploy failed", {
+        description: "Check token, project, and Vercel deployment history",
+      })
+    }
+  },
+
+  reset: () => set({ config: null, envVars: [], syncCount: 0, isDeploying: false }),
 }))
 
 export default function VercelEnvUpdaterPage() {
@@ -139,10 +182,12 @@ export default function VercelEnvUpdaterPage() {
     envVars,
     syncCount,
     isSyncing,
+    isDeploying,
     setConfig,
     addEnvVar,
     removeEnvVar,
     syncToDatabase,
+    syncAndDeploy,
     reset,
   } = useUpdaterStore()
 
@@ -153,20 +198,28 @@ export default function VercelEnvUpdaterPage() {
     control,
     watch,
     formState: { isSubmitting },
-  } = useForm<{ token: string; scope: string; projectId: string }>({
-    defaultValues: { token: "", scope: "", projectId: "" },
+    setValue,
+  } = useForm<{ token: string; scope: string; projectId: string; projectName: string }>({
+    defaultValues: { token: "", scope: "", projectId: "", projectName: "" },
   })
 
   const token = watch("token")
   const scope = watch("scope")
 
   const credentialsToastShown = React.useRef(false)
+  const [deployDialogOpen, setDeployDialogOpen] = React.useState(false)
 
-  const onConnectSubmit = async (data: { token: string; scope: string; projectId: string }) => {
+  const onConnectSubmit = async (data: {
+    token: string
+    scope: string
+    projectId: string
+    projectName: string
+  }) => {
     const newConfig: EnvConfig = {
       vercelToken: data.token.trim(),
       scope: data.scope.trim(),
       projectId: data.projectId.trim(),
+      projectName: data.projectName.trim(),
     }
 
     const saved = await saveVercelConnection(newConfig)
@@ -176,11 +229,28 @@ export default function VercelEnvUpdaterPage() {
     }
 
     setConfig(newConfig)
+    const projectLabel = newConfig.projectName || newConfig.projectId || "all"
     toast.success("Vercel connected", {
-      description: `Scope: ${newConfig.scope || "personal"} • Project: ${newConfig.projectId || "all"}`,
+      description: `Scope: ${newConfig.scope || "personal"} • Project: ${projectLabel}`,
     })
-    resetForm()
+    resetForm({
+      token: data.token,
+      scope: data.scope,
+      projectId: data.projectId,
+      projectName: data.projectName,
+    })
   }
+
+  const handleConfirmDeploy = () => {
+    setDeployDialogOpen(false)
+    void syncAndDeploy()
+  }
+
+  const saveActionsDisabled =
+    !config || envVars.length === 0 || isSyncing || isDeploying
+
+  const deployActionsDisabled =
+    saveActionsDisabled || !config?.projectId?.trim()
 
   const [newKey, setNewKey] = React.useState("")
   const [newValue, setNewValue] = React.useState("")
@@ -216,17 +286,20 @@ export default function VercelEnvUpdaterPage() {
         const scope = connection?.scope || defaultToken?.scope || ""
         const projectId = connection?.projectId || ""
 
+        const projectName = connection?.projectName ?? ""
+
         if (token) {
-          resetForm({ token, scope, projectId })
+          resetForm({ token, scope, projectId, projectName })
 
           if (connection) {
             setConfig({
               vercelToken: connection.vercelToken,
               scope: connection.scope,
               projectId: connection.projectId,
+              projectName: connection.projectName,
             })
           } else {
-            setConfig({ vercelToken: token, scope, projectId })
+            setConfig({ vercelToken: token, scope, projectId, projectName })
           }
 
           if (!credentialsToastShown.current) {
@@ -326,6 +399,9 @@ export default function VercelEnvUpdaterPage() {
                           id="projectId"
                           value={field.value}
                           onValueChange={field.onChange}
+                          onProjectSelect={(project) =>
+                            setValue("projectName", project?.name ?? "")
+                          }
                           token={token}
                           scope={scope}
                           disabled={isSubmitting}
@@ -356,6 +432,7 @@ export default function VercelEnvUpdaterPage() {
                   className="mt-5"
                   scope={config.scope || "personal account"}
                   projectId={config.projectId || undefined}
+                  projectName={config.projectName}
                 />
               )}
             </StepCard>
@@ -429,12 +506,12 @@ export default function VercelEnvUpdaterPage() {
 
                 <EnvVarList items={envVars} onRemove={removeEnvVar} />
 
-                <div className="pt-2 mt-auto">
+                <div className="pt-2 mt-auto space-y-2">
                   <Button
-                    onClick={syncToDatabase}
-                    disabled={!config || envVars.length === 0 || isSyncing}
+                    onClick={() => void syncToDatabase()}
+                    disabled={saveActionsDisabled}
                     className="w-full min-h-11 text-base"
-                    variant={config ? "default" : "secondary"}
+                    variant={config ? "secondary" : "secondary"}
                   >
                     {isSyncing ? (
                       <>
@@ -448,8 +525,29 @@ export default function VercelEnvUpdaterPage() {
                       </>
                     )}
                   </Button>
-                  <p className="text-center text-[10px] text-muted-foreground mt-2">
-                    Uses <span className="font-medium">@workspace/db</span> (Prisma + Postgres 18)
+
+                  <Button
+                    onClick={() => setDeployDialogOpen(true)}
+                    disabled={deployActionsDisabled}
+                    className="w-full min-h-11 text-base"
+                    variant={config?.projectId ? "default" : "secondary"}
+                  >
+                    {isDeploying ? (
+                      <>
+                        <Spinner className="mr-2" />
+                        Saving & deploying…
+                      </>
+                    ) : (
+                      <>
+                        <HiOutlineRocketLaunch className="mr-2 size-4" />
+                        Save and deploy
+                      </>
+                    )}
+                  </Button>
+
+                  <p className="text-center text-[10px] text-muted-foreground">
+                    Save only writes to <span className="font-medium">@workspace/db</span>. Save and
+                    deploy also pushes env vars to Vercel and triggers a redeploy.
                   </p>
                 </div>
               </div>
@@ -506,6 +604,27 @@ export default function VercelEnvUpdaterPage() {
           </div>
         </AnimatedReveal>
       </div>
+
+      <AlertDialog open={deployDialogOpen} onOpenChange={setDeployDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save and deploy?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will sync {envVars.length} variable(s) to Postgres, push them to Vercel on{" "}
+              <span className="font-medium text-foreground">
+                {config?.projectName || config?.projectId || "the selected project"}
+              </span>
+              , and trigger production/preview redeployments (same targets as Bulk Update defaults).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel className="min-h-11">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDeploy} className="min-h-11">
+              Save and deploy
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="border-t py-6 sm:py-8 bg-muted/30">
         <div className="mx-auto max-w-3xl text-center px-4 sm:px-6 text-sm text-muted-foreground">

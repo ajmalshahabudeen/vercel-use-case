@@ -77,5 +77,6 @@ model VercelConnection {
   vercelToken String   @default("")
   scope       String   @default("")
   projectId   String   @default("")
+  projectName String   @default("")
   updatedAt   DateTime @updatedAt
 }

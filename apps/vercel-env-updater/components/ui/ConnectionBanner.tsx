@@ -6,10 +6,16 @@ import { cn } from '@workspace/ui/lib/utils'
 type ConnectionBannerProps = {
   scope: string
   projectId?: string
+  projectName?: string
   className?: string
 }
 
-export function ConnectionBanner({ scope, projectId, className }: ConnectionBannerProps) {
+export function ConnectionBanner({
+  scope,
+  projectId,
+  projectName,
+  className,
+}: ConnectionBannerProps) {
   return (
     <div
       className={cn(
@@ -25,7 +31,17 @@ export function ConnectionBanner({ scope, projectId, className }: ConnectionBann
         {projectId ? (
           <>
             <span className="text-muted-foreground"> · Project </span>
-            <span className="font-mono text-xs break-all">{projectId}</span>
+            {projectName ? (
+              <>
+                <span className="font-medium">{projectName}</span>
+                <span className="text-muted-foreground font-mono text-xs break-all">
+                  {' '}
+                  ({projectId})
+                </span>
+              </>
+            ) : (
+              <span className="font-mono text-xs break-all">{projectId}</span>
+            )}
           </>
         ) : null}
         <p className="mt-1 text-[11px] text-muted-foreground">Token stored securely — not shown in UI</p>

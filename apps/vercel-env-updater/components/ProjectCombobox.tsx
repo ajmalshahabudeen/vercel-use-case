@@ -35,6 +35,7 @@ function toOption(project: VercelProject): ProjectOption {
 type ProjectComboboxProps = {
   value: string
   onValueChange: (projectId: string) => void
+  onProjectSelect?: (project: { id: string; name: string } | null) => void
   token: string
   scope?: string
   disabled?: boolean
@@ -44,6 +45,7 @@ type ProjectComboboxProps = {
 export function ProjectCombobox({
   value,
   onValueChange,
+  onProjectSelect,
   token,
   scope = '',
   disabled = false,
@@ -110,7 +112,12 @@ export function ProjectCombobox({
           <Combobox
             items={items}
             value={selected}
-            onValueChange={(item) => onValueChange(item?.value ?? '')}
+            onValueChange={(item) => {
+              onValueChange(item?.value ?? '')
+              onProjectSelect?.(
+                item ? { id: item.value, name: item.name } : null
+              )
+            }}
             disabled={comboboxDisabled}
             isItemEqualToValue={(a, b) => a.value === b.value}
             autoHighlight

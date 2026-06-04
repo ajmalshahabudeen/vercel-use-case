@@ -143,6 +143,112 @@ export async function bulkUpsertEnv(
   return results
 }
 
+export type EnvVarUpsertResult = {
+  key: string
+  success: boolean
+  error?: string
+  envId?: string
+}
+
+/**
+ * Upserts multiple environment variables on a single Vercel project.
+ */
+export async function upsertProjectEnvVars(
+  token: string,
+  project: { id: string; name: string },
+  envVars: Array<{ key: string; value: string }>,
+  targets: VercelEnvVariable['target'],
+  scope?: string
+): Promise<EnvVarUpsertResult[]> {
+  const results: EnvVarUpsertResult[] = []
+
+  for (const envVar of envVars) {
+    try {
+      const response = await upsertEnvVariable(
+        token,
+        project.id,
+        {
+          key: envVar.key.trim(),
+          value: envVar.value,
+          type: 'encrypted',
+          target: targets,
+        },
+        scope
+      )
+
+      results.push({
+        key: envVar.key,
+        success: true,
+        envId: response.id,
+      })
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: { message?: string } } }; message?: string }
+      const message =
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        'Unknown error from Vercel API'
+
+      results.push({
+        key: envVar.key,
+        success: false,
+        error: message,
+      })
+    }
+  }
+
+  return results
+}
+
+/**
+ * Triggers redeployments for a project across production/preview targets.
+ */
+export async function redeployProjectTargets(
+  token: string,
+  project: { id: string; name: string },
+  targets: VercelEnvVariable['target'],
+  scope?: string
+): Promise<
+  Array<{
+    target: RedeployTarget
+    success: boolean
+    error?: string
+    deploymentId?: string
+  }>
+> {
+  const deployTargets = redeployTargetsFromEnvTargets(targets)
+  const results: Array<{
+    target: RedeployTarget
+    success: boolean
+    error?: string
+    deploymentId?: string
+  }> = []
+
+  for (const deployTarget of deployTargets) {
+    try {
+      const deployment = await redeployProject(token, project, deployTarget, scope)
+      results.push({
+        target: deployTarget,
+        success: true,
+        deploymentId: deployment.id,
+      })
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: { message?: string } } }; message?: string }
+      const message =
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        'Failed to trigger redeployment'
+
+      results.push({
+        target: deployTarget,
+        success: false,
+        error: message,
+      })
+    }
+  }
+
+  return results
+}
+
 /**
  * Returns the latest READY deployment for a project and target.
  */
