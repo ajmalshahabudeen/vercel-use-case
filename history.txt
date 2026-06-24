@@ -1,5 +1,27 @@
 # Task History Log (per Grok-rule.md)
 
+## 2026-06-24 : Docker Guide & Windows Batch Runner for vercel-env-updater
+
+**What I did:**
+- Added [docker-guid.md](apps/vercel-env-updater/docker-guid.md) with step-by-step guidelines on building, configuring, running, and accessing the `vercel-env-updater` Docker container.
+- Added [run-docker.bat](apps/vercel-env-updater/run-docker.bat) in the app directory. This batch script:
+  - Verifies if Docker is running.
+  - Checks if the Postgres database container (`vercel-db`) is running/stopped/non-existent.
+  - Creates the shared network `vercel-net` and starts/builds `vercel-db` if necessary.
+  - Waits for PostgreSQL to be ready.
+  - Generates and pushes database schema using host `bun` if `bun` is available.
+  - Rebuilds and launches the `vercel-env-updater` container on port 3001.
+  - Launches the browser to `http://localhost:3001` automatically.
+
+**Why:**
+- The user requested documentation on running the container, accessing it, and a helper batch script to automate the setup and check the database container.
+
+**Verification:**
+- `bun run build --filter=vercel-env-updater` — exit 0
+- `bun run lint --filter=vercel-env-updater` — exit 0
+
+**Status:** COMPLETE
+
 ## 2026-06-04 : Get Started — Save and deploy + project name in banner
 
 **What I did:**
