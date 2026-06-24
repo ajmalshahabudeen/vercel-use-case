@@ -81,10 +81,11 @@ bun run docker:env-updater:build
 
 ### Step 4: Run the Application Container
 
-Start the container and hook it up to the shared database network `vercel-net`:
+Start the container and hook it up to the shared database network `vercel-net` (we also supply public DNS servers like `8.8.8.8` to ensure the container can resolve external hostnames like `api.vercel.com` even if the host's Docker DNS forwarding encounters issues):
 
 ```bash
 docker run -d --name vercel-env-updater --network vercel-net \
+  --dns 8.8.8.8 --dns 1.1.1.1 \
   -e DATABASE_URL="postgresql://postgres:postgres@vercel-db:5432/vercel_use_case?schema=public" \
   -p 3001:3000 \
   vercel-env-updater:latest

@@ -1,17 +1,19 @@
 # Task History Log (per Grok-rule.md)
 
-## 2026-06-24 : Resolve Docker Network Connectivity between vercel-env-updater and vercel-db
+## 2026-06-24 : Resolve Docker Network Connectivity and DNS Issues between vercel-env-updater and vercel-db
 
 **What I did:**
 - Updated [run-docker.bat](apps/vercel-env-updater/run-docker.bat) to connect `vercel-db` to the custom Docker network `vercel-net` automatically.
-- Updated [docker-guid.md](apps/vercel-env-updater/docker-guid.md) with a troubleshooting tip for database connectivity issues if the container exists on another network.
-- Verified network layouts and startup logs showing zero database connection/resolution errors.
+- Added public DNS configurations (`--dns 8.8.8.8 --dns 1.1.1.1`) to the `docker run` command in [run-docker.bat](apps/vercel-env-updater/run-docker.bat) to prevent outbound DNS lookup failures (e.g., resolving `api.vercel.com`).
+- Updated [docker-guid.md](apps/vercel-env-updater/docker-guid.md) with a troubleshooting tip for database connectivity issues on the `bridge` network and documented manual DNS configurations.
+- Verified network layouts, DNS configurations, and startup logs showing zero connection or DNS errors.
 
 **Why:**
 - The database container was on the `bridge` network and the app container on `vercel-net`, preventing name resolution (`vercel-db`) and resulting in `DatabaseNotReachable` Prisma Client errors.
+- Added public DNS servers to resolve host-level DNS forwarding issues that cause timeout failures when talking to external APIs (e.g. `api.vercel.com`).
 
 **Verification:**
-- Ran `.\apps\vercel-env-updater\run-docker.bat` and inspected Docker networks.
+- Ran `.\apps\vercel-env-updater\run-docker.bat` and inspected Docker networks + DNS configs.
 - Executed `docker logs vercel-env-updater` to confirm successful start.
 
 **Status:** COMPLETE

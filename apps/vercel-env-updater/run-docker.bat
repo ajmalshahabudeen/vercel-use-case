@@ -111,6 +111,7 @@ if %errorlevel% neq 0 (
 :: Run Next.js app container
 echo [INFO] Starting vercel-env-updater container...
 docker run -d --name vercel-env-updater --network vercel-net ^
+  --dns 8.8.8.8 --dns 1.1.1.1 ^
   -e DATABASE_URL="postgresql://postgres:postgres@vercel-db:5432/vercel_use_case?schema=public" ^
   -p 3001:3000 ^
   vercel-env-updater:latest
