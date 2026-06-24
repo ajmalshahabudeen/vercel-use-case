@@ -58,6 +58,9 @@ if %errorlevel% equ 0 (
     )
 )
 
+:: Ensure vercel-db is connected to the shared network vercel-net
+docker network connect vercel-net vercel-db >nul 2>&1
+
 :: Wait for Postgres to be fully ready
 echo [INFO] Waiting for PostgreSQL to be ready to accept connections...
 :wait_postgres

@@ -1,5 +1,21 @@
 # Task History Log (per Grok-rule.md)
 
+## 2026-06-24 : Resolve Docker Network Connectivity between vercel-env-updater and vercel-db
+
+**What I did:**
+- Updated [run-docker.bat](apps/vercel-env-updater/run-docker.bat) to connect `vercel-db` to the custom Docker network `vercel-net` automatically.
+- Updated [docker-guid.md](apps/vercel-env-updater/docker-guid.md) with a troubleshooting tip for database connectivity issues if the container exists on another network.
+- Verified network layouts and startup logs showing zero database connection/resolution errors.
+
+**Why:**
+- The database container was on the `bridge` network and the app container on `vercel-net`, preventing name resolution (`vercel-db`) and resulting in `DatabaseNotReachable` Prisma Client errors.
+
+**Verification:**
+- Ran `.\apps\vercel-env-updater\run-docker.bat` and inspected Docker networks.
+- Executed `docker logs vercel-env-updater` to confirm successful start.
+
+**Status:** COMPLETE
+
 ## 2026-06-24 : Docker Guide & Windows Batch Runner for vercel-env-updater
 
 **What I did:**

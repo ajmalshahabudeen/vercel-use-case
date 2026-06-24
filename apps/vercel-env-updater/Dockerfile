@@ -20,7 +20,7 @@ COPY packages/typescript-config/package.json ./packages/typescript-config/
 RUN bun install --frozen-lockfile
 
 FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app /app
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL="postgresql://postgres:postgres@vercel-db:5432/vercel_use_case?schema=public"

@@ -52,6 +52,13 @@ Verify that the database is ready:
 docker exec vercel-db pg_isready -U postgres -d vercel_use_case
 ```
 
+> [!TIP]
+> If your `vercel-db` container was created on another network (such as the default `bridge` network via `bun run db:up` inside the `packages/db` directory), the application container won't be able to resolve `vercel-db` and will fail with `DatabaseNotReachable`.
+> You can connect the existing container to the shared network by running:
+> ```bash
+> docker network connect vercel-net vercel-db
+> ```
+
 > [!IMPORTANT]
 > Ensure the database schema is pushed before starting the application container. You can do this by running `bun run --cwd packages/db db:push` from the host environment.
 
