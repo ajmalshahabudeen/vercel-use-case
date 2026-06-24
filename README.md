@@ -1,10 +1,9 @@
 # shadcn/ui monorepo template
 
-Next.js monorepo with shadcn/ui, a local Postgres database (`packages/db`), and two apps:
+Next.js monorepo with shadcn/ui, a local Postgres database (`packages/db`), and the Vercel Environment Updater app:
 
 | App | Purpose | Docker port |
 | --- | --- | --- |
-| `apps/web` | UI template / demo | `3000` |
 | `apps/vercel-env-updater` | Vercel env sync tool (uses Prisma + Postgres) | `3001` |
 
 ## Prerequisites
@@ -79,24 +78,13 @@ docker run -d --name vercel-env-updater --network vercel-net \
 
 Open http://localhost:3001
 
-**`web`:**
 
-```bash
-docker build -f apps/web/Dockerfile -t vercel-web:latest .
-
-docker run -d --name vercel-web --network vercel-net \
-  -p 3000:3000 \
-  vercel-web:latest
-```
-
-Open http://localhost:3000
 
 ### 5. Root shortcuts (build images only)
 
 ```bash
 bun run docker:db:build
 bun run docker:env-updater:build
-bun run docker:web:build
 ```
 
 Per-app scripts (from each app folder):
@@ -104,16 +92,13 @@ Per-app scripts (from each app folder):
 ```bash
 bun run --cwd apps/vercel-env-updater docker:build
 bun run --cwd apps/vercel-env-updater docker:run
-
-bun run --cwd apps/web docker:build
-bun run --cwd apps/web docker:run
 ```
 
 ### Stop and clean up
 
 ```bash
-docker stop vercel-env-updater vercel-web vercel-db
-docker rm vercel-env-updater vercel-web vercel-db
+docker stop vercel-env-updater vercel-db
+docker rm vercel-env-updater vercel-db
 # Data volume persists until removed:
 # docker volume rm vercel_pgdata
 ```
@@ -138,7 +123,7 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/vercel_use_case?sche
 From the repo root:
 
 ```bash
-pnpm dlx shadcn@latest add button -c apps/web
+pnpm dlx shadcn@latest add button -c apps/vercel-env-updater
 ```
 
 Components are added under `packages/ui/src/components`.
@@ -154,7 +139,6 @@ import { Button } from "@workspace/ui/components/button";
 ```
 packages/db/Dockerfile              → Postgres 18 (run first)
 apps/vercel-env-updater/Dockerfile  → Next.js standalone (port 3001)
-apps/web/Dockerfile                 → Next.js standalone (port 3000)
 ```
 
 Build context for app images is always the **monorepo root** (`.`), not the app folder alone.

@@ -42,29 +42,6 @@
         "typescript": "^5",
       },
     },
-    "apps/web": {
-      "name": "web",
-      "version": "0.0.1",
-      "dependencies": {
-        "@hugeicons/core-free-icons": "^4.2.0",
-        "@hugeicons/react": "^1.1.6",
-        "@workspace/ui": "workspace:*",
-        "next": "16.2.6",
-        "next-themes": "^0.4.6",
-        "react": "19.2.4",
-        "react-dom": "19.2.4",
-      },
-      "devDependencies": {
-        "@tailwindcss/postcss": "^4",
-        "@types/node": "^20",
-        "@types/react": "^19",
-        "@types/react-dom": "^19",
-        "@workspace/eslint-config": "workspace:^",
-        "@workspace/typescript-config": "workspace:*",
-        "eslint": "^9",
-        "typescript": "^5",
-      },
-    },
     "packages/db": {
       "name": "@workspace/db",
       "version": "0.0.0",
@@ -1807,8 +1784,6 @@
     "vary": ["vary@1.1.2", "", {}, "sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg=="],
 
     "vercel-env-updater": ["vercel-env-updater@workspace:apps/vercel-env-updater"],
-
-    "web": ["web@workspace:apps/web"],
 
     "web-streams-polyfill": ["web-streams-polyfill@3.3.3", "", {}, "sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw=="],
 

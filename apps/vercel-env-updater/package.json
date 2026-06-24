@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack",
+    "build": "node node_modules/next/dist/bin/next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "docker:build": "docker build -f Dockerfile -t vercel-env-updater:latest ../..",

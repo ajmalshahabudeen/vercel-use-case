@@ -13,7 +13,6 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json bun.lock turbo.json ./
 COPY apps/vercel-env-updater/package.json ./apps/vercel-env-updater/
-COPY apps/web/package.json ./apps/web/
 COPY packages/db/package.json ./packages/db/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/eslint-config/package.json ./packages/eslint-config/

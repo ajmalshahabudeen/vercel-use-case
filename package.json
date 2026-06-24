@@ -11,8 +11,7 @@
     "docker:net": "docker network create vercel-net",
     "docker:db:build": "docker build -t vercel-postgres:18 -f packages/db/Dockerfile packages/db",
     "docker:db:up": "docker run -d --name vercel-db --network vercel-net -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=vercel_use_case -p 5432:5432 -v vercel_pgdata:/var/lib/postgresql vercel-postgres:18",
-    "docker:env-updater:build": "docker build -f apps/vercel-env-updater/Dockerfile -t vercel-env-updater:latest .",
-    "docker:web:build": "docker build -f apps/web/Dockerfile -t vercel-web:latest ."
+    "docker:env-updater:build": "docker build -f apps/vercel-env-updater/Dockerfile -t vercel-env-updater:latest ."
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

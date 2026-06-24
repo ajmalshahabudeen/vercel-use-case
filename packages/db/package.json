@@ -7,7 +7,7 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx,js,md}\"",
     "typecheck": "tsc --noEmit",
-    "build": "prisma generate",
+    "build": "bun run prisma generate",
     "clean": "rm -rf generated dist .turbo 2>nul || echo 'clean done'",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
